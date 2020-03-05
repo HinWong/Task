@@ -13,28 +13,29 @@ class TaskController {
     
     //MARK:- shared instance
     static let sharedInstance = TaskController()
+    var fetchResultsController: NSFetchedResultsController<Task>
     
     //MARK:- Source of truth
-    var tasks: [Task] = []
+//    var tasks: [Task] = {
+//
+//        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
+//        return (try?CoreDataStack.context.fetch(fetchRequest)) ?? []
+//    }()
     
     init() {
-        tasks = fetchTasks()
+        let request:NSFetchRequest<Task> = Task.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "isComplete", ascending: true), NSSortDescriptor(key: "due", ascending: true)]
+        let resultsController: NSFetchedResultsController = NSFetchedResultsController(fetchRequest: request, managedObjectContext: CoreDataStack.context, sectionNameKeyPath: "isComplete", cacheName: nil)
+        fetchResultsController = resultsController
+        
+        do {
+            try fetchResultsController.performFetch()
+        } catch {
+            print("cannot perform fetch \(error.localizedDescription) \(#function)")
+        }
     }
-    
-    var mockTasks:[Task] = {
-        
-        let task1 = Task(name: "wake up", notes: "wake up", due: Date(), isComplete:false)
-        let task2 = Task(name: "sleep", notes: "sleep", due: Date(), isComplete:false)
-        
-        return [task1, task2]
-    }()
     
     //MARK: - CRUD
-    
-    func fetchTasks() -> [Task] {
-        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
-        return (try?CoreDataStack.context.fetch(fetchRequest)) ?? []
-    }
     
     func add(name:String, notes:String?, due:Date?) {
         Task(name: name, notes:notes , due: due)
@@ -52,7 +53,13 @@ class TaskController {
         CoreDataStack.context.delete(task)
         saveToPersistentStore()
     }
-    func saveToPersistentStore() {
+    
+    func toggleIsComplete(task: Task) {
+        task.isComplete = !task.isComplete
+        saveToPersistentStore()
+    }
+    
+    private func saveToPersistentStore() {
         do {
             try CoreDataStack.context.save()
         }
@@ -60,5 +67,4 @@ class TaskController {
             print("There was an error saving the data! \(#function) \(error.localizedDescription)")
         }
     }
-    
 }
